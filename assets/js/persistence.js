@@ -269,13 +269,9 @@ function normalizeStateShape(source){
     weekly:{w1:'',w2:'',w3:'',w4:''},
     weeklyHistory:[],
     moodLog:[],
-    settings:{fontScale:1,language:'ar'},
+    settings:{fontScale:1,language:'ar',currency:defaults.settings.currency},
     pomodoro:{mode:'focus',remainingSec:1500,running:false,lastTickAt:null,sessionsToday:{},totalSessions:0},
   };
-  
-  if (normalized.weeklyChallenge && typeof normalized.weeklyChallenge === 'string') {
-    normalized.weeklyChallenge = normalized.weeklyChallenge.replace(/جنيه/g, 'روبل');
-  }
 
   const habitsSrc=Array.isArray(src.habits)?src.habits:defaults.habits;
   normalized.habits=habitsSrc.map((habit,index)=>({
@@ -365,9 +361,11 @@ function normalizeStateShape(source){
 
   const settingsSrc=src.settings&&typeof src.settings==='object'?src.settings:{};
   const fontScale=Number(settingsSrc.fontScale);
+  const currencyValue=String(settingsSrc.currency||'').trim().toUpperCase();
   normalized.settings={
     fontScale:Number.isFinite(fontScale)?clamp(fontScale,0.9,1.2):defaults.settings.fontScale,
     language:['ar','en'].includes(settingsSrc.language)?settingsSrc.language:defaults.settings.language,
+    currency:CURRENCY_OPTIONS.some(option=>option.code===currencyValue)?currencyValue:defaults.settings.currency,
   };
 
   const pomodoroSrc=src.pomodoro&&typeof src.pomodoro==='object'?src.pomodoro:{};

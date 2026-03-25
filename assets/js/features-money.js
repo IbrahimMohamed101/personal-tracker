@@ -10,6 +10,39 @@ function exportExpensesCsv(){
   toast(lang()==='en'?'Transactions CSV exported':'تم تصدير CSV المعاملات');
 }
 
+function syncMoneyCurrencyUi(){
+  const setText=(id,value)=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent=value;
+  };
+  const currencySelect=document.getElementById('money-currency-select');
+  if(currencySelect)currencySelect.value=currencyCode();
+  const amountInput=document.getElementById('m-amount');
+  if(amountInput)amountInput.placeholder=`المبلغ (${currencySymbol()})`;
+  setText('stat-savings-label',currencyShortName());
+  setText('money-balance-sub',`${currencyShortName()} (دخل - مصاريف)`);
+  setText('money-income-sub',`${currencyShortName()} مكتسب`);
+  setText('money-total-sub',`${currencyShortName()} مصروف`);
+  setText('m-savings-goal-currency',currencySymbol());
+}
+
+function updateCurrency(value){
+  if(!S.settings||typeof S.settings!=='object')S.settings=createDefaultState().settings;
+  const nextCurrency=getCurrencyOption(value).code;
+  if(S.settings.currency===nextCurrency){
+    syncMoneyCurrencyUi();
+    return;
+  }
+  S.settings.currency=nextCurrency;
+  syncMoneyCurrencyUi();
+  renderMoney();
+  renderStats();
+  renderXpUi();
+  renderAchievements();
+  save();
+  toast(`تم تغيير العملة إلى ${currencyName()}`);
+}
+
 function ensureBudgetDefaults(){
   if(!S.budgets||typeof S.budgets!=='object')S.budgets={};
   BUDGET_CATEGORIES.forEach(category=>{
@@ -73,7 +106,7 @@ function renderBudgetManager(){
     let color='var(--green)';
     if(limit&&pct>100)color='var(--red)';
     else if(limit&&pct>=75)color='var(--amber)';
-    return `<div class="budget-row"><div class="budget-head"><div><div class="budget-name">${escapeHtml(category)}</div><div class="budget-meta">${toArFull(spent)} / ${toArFull(limit)} ₽</div></div><input class="inp budget-input" type="number" min="0" value="${limit}" onchange="updateBudget('${category}',this.value)"></div><div class="budget-track"><div class="budget-fill" style="width:${Math.min(100,pct)}%;background:${color}"></div></div></div>`;
+    return `<div class="budget-row"><div class="budget-head"><div><div class="budget-name">${escapeHtml(category)}</div><div class="budget-meta">${formatMoneyAmount(spent)} / ${formatMoneyAmount(limit)}</div></div><input class="inp budget-input" type="number" min="0" value="${limit}" onchange="updateBudget('${category}',this.value)"></div><div class="budget-track"><div class="budget-fill" style="width:${Math.min(100,pct)}%;background:${color}"></div></div></div>`;
   }).join('');
   const projection=document.getElementById('budget-projection');
   if(projection)projection.textContent=calculateProjectedSavingsDate();
@@ -131,6 +164,7 @@ function addExpense(){
 
 function renderMoney(){
   ensureBudgetDefaults();
+  syncMoneyCurrencyUi();
   const savings=S.expenses.filter(expense=>expense.cat==='ادخار').reduce((sum,expense)=>sum+expense.amt,0);
   const income=S.expenses.filter(expense=>isIncome(expense.cat)).reduce((sum,expense)=>sum+expense.amt,0);
   const total=S.expenses.filter(expense=>!isIncome(expense.cat)&&expense.cat!=='ادخار').reduce((sum,expense)=>sum+expense.amt,0);
@@ -147,7 +181,7 @@ function renderMoney(){
   }
   
   const savingsNav=document.getElementById('m-savings-nav');
-  if(savingsNav)savingsNav.textContent=toArFull(savings)+' ₽';
+  if(savingsNav)savingsNav.textContent=formatMoneyAmount(savings);
 
   const goalVal=document.getElementById('m-savings-goal-val');
   if(goalVal)goalVal.textContent=toArFull(S.savingsGoal);
@@ -163,9 +197,9 @@ function renderMoney(){
   const cats={};
   S.expenses.filter(expense=>!isIncome(expense.cat)&&expense.cat!=='ادخار').forEach(expense=>{cats[expense.cat]=(cats[expense.cat]||0)+expense.amt;});
   const catsEl=document.getElementById('m-cats');
-  if(catsEl)catsEl.innerHTML=Object.keys(cats).length?Object.entries(cats).slice(0,5).map(([cat,value])=>`<div class="money-summary-row" style="font-size:12px"><span>${cat}</span><span>${toArFull(value)} ₽</span></div>`).join(''):'<div class="exp-empty" style="padding:12px 0">لا توجد فئات مصروفات بعد</div>';
+  if(catsEl)catsEl.innerHTML=Object.keys(cats).length?Object.entries(cats).slice(0,5).map(([cat,value])=>`<div class="money-summary-row" style="font-size:12px"><span>${cat}</span><span>${formatMoneyAmount(value)}</span></div>`).join(''):'<div class="exp-empty" style="padding:12px 0">لا توجد فئات مصروفات بعد</div>';
   const log=document.getElementById('exp-log');
-  if(log)log.innerHTML=S.expenses.length===0?'<div class="exp-empty"><div class="empty-state"><div class="icon">◈</div><div>سجلي أول عملية ليكِ</div></div></div>':S.expenses.slice(0,25).map(expense=>`<div class="exp-item"><span class="exp-item-cat">${escapeHtml(expense.cat)}</span><span class="exp-item-note">${escapeHtml(expense.note||'بدون ملاحظة')}</span><span class="exp-item-amt ${expense.cat==='ادخار'||isIncome(expense.cat)?'savings':''}">${isIncome(expense.cat)?'+':''}${toArFull(expense.amt)} ₽</span><span class="exp-item-date">${formatShortDate(expense.date)}</span><span class="exp-item-actions"><button class="mini-action danger" onclick="deleteExpense(${expense.id})">حذف</button></span></div>`).join('');
+  if(log)log.innerHTML=S.expenses.length===0?'<div class="exp-empty"><div class="empty-state"><div class="icon">◈</div><div>سجلي أول عملية ليكِ</div></div></div>':S.expenses.slice(0,25).map(expense=>`<div class="exp-item"><span class="exp-item-cat">${escapeHtml(expense.cat)}</span><span class="exp-item-note">${escapeHtml(expense.note||'بدون ملاحظة')}</span><span class="exp-item-amt ${expense.cat==='ادخار'||isIncome(expense.cat)?'savings':''}">${formatMoneyAmount(expense.amt,{prefix:isIncome(expense.cat)?'+':''})}</span><span class="exp-item-date">${formatShortDate(expense.date)}</span><span class="exp-item-actions"><button class="mini-action danger" onclick="deleteExpense(${expense.id})">حذف</button></span></div>`).join('');
   renderBudgetManager();
 }
 

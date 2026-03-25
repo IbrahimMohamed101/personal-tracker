@@ -42,7 +42,7 @@ function ensureWeeklyChallenge(){
   const record={
     id:def.id,
     week:weekStart,
-    text:def.text,
+    text:getChallengeText(def.id)||def.text,
     reward:def.reward,
     target:def.target,
     type:def.type,
@@ -69,7 +69,7 @@ function updateWeeklyChallengeProgress(){
   if(!S.weeklyChallengeDone&&progress>=record.target){
     S.weeklyChallengeDone=true;
     grantXp(record.reward,{silent:false,skipChallengeCheck:true});
-    toast(`🏆 ${record.text}`);
+    toast(`🏆 ${getChallengeText(record.id)||record.text}`);
   }
 }
 
@@ -133,7 +133,7 @@ function renderXpUi(){
   updateWeeklyChallengeProgress();
   const levelData=xpIntoLevel(S.xp);
   const record=getWeekChallengeRecord();
-  const miniChallenge=record?record.text:'لا يوجد تحدي أسبوعي بعد';
+  const miniChallenge=record?(getChallengeText(record.id)||record.text):'لا يوجد تحدي أسبوعي بعد';
   const levelTitle=`المستوى ${toAr(S.level)} ✦`;
   const miniText=S.level>=20?`${toAr(S.xp)} XP`:`${toAr(levelData.current)} / ${toAr(levelData.target)}`;
   const setText=(id,value)=>{
@@ -169,13 +169,14 @@ function renderAchievements(){
   setText('achievement-next',S.level>=20?'—':toAr(nextValue));
   const xpBar=document.getElementById('achievement-xp-bar');
   if(xpBar)xpBar.style.width=`${levelData.progress}%`;
-  setText('weekly-challenge-title',record?record.text:'لا يوجد تحدي بعد');
+  setText('weekly-challenge-title',record?(getChallengeText(record.id)||record.text):'لا يوجد تحدي بعد');
   setText('weekly-challenge-meta',record?`${toAr(Math.min(S.weeklyChallengeProgress,record.target))} / ${toAr(record.target)}${S.weeklyChallengeDone?' • مكتمل ✓':''}`:'انتظري التحدي القادم');
   const challengeBar=document.getElementById('weekly-challenge-bar');
   if(challengeBar)challengeBar.style.width=`${challengePct}%`;
   container.innerHTML=ACHIEVEMENT_DEFS.map(item=>{
     const unlocked=Boolean(unlocks[item.id]);
-    return `<div class="badge-card ${unlocked?'':'locked'}" id="badge-${item.id}"><div class="badge-icon">${item.icon}</div><div class="badge-title">${escapeHtml(item.title)}</div><div class="badge-desc">${escapeHtml(item.desc)}</div><div class="badge-state" style="color:${unlocked?'var(--green)':'var(--text3)'}">${unlocked?'مفتوح ✓':'مغلق'}</div></div>`;
+    const copy=getAchievementCopy(item.id);
+    return `<div class="badge-card ${unlocked?'':'locked'}" id="badge-${item.id}"><div class="badge-icon">${item.icon}</div><div class="badge-title">${escapeHtml(copy.title)}</div><div class="badge-desc">${escapeHtml(copy.desc)}</div><div class="badge-state" style="color:${unlocked?'var(--green)':'var(--text3)'}">${unlocked?'مفتوح ✓':'مغلق'}</div></div>`;
   }).join('');
   
   // Particle burst for newly unlocked
