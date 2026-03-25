@@ -3,11 +3,10 @@
   "framework": null,
   "buildCommand": "npm run build:frontend",
   "outputDirectory": "frontend-dist",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "${BACKEND_URL}/api/$1",
-      "env": ["BACKEND_URL"]
+      "source": "/api/:path*",
+      "destination": "/api/proxy"
     }
   ]
 }
