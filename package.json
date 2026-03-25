@@ -2,6 +2,7 @@
   "name": "personal-tracker-deploy",
   "private": true,
   "scripts": {
+    "build:frontend": "rm -rf frontend-dist && mkdir -p frontend-dist && cp index.html sama_os.html frontend-dist/ && cp -R assets frontend-dist/",
     "build": "npm install --prefix server",
     "start": "node server/index.js"
   },

@@ -1,15 +1,14 @@
 # Personal Tracker Deployment
 
-## Recommended deployment
+## Recommended split deployment
 
-Deploy the whole project to Render as a single Node web service.
+Deploy:
+- frontend on Vercel
+- backend on Render
 
-Why:
-- The frontend is static, but the project also needs the Express API.
-- Netlify alone only hosts the frontend, so `/api/*` returns `404` unless you deploy the backend separately.
-- Render can run the Express app and serve `index.html` plus `assets/` from the same origin.
+This repo is now prepared for that setup.
 
-## Render setup
+## Backend on Render
 
 1. Push this project to GitHub.
 2. Create a new Web Service on Render from the repo.
@@ -19,7 +18,28 @@ Why:
    - `JWT_SECRET`
 5. Deploy.
 
-The app will be available from the Render service URL, and the frontend will use the same origin for `/api`.
+Your backend URL will look like:
+
+```text
+https://your-backend-name.onrender.com
+```
+
+## Frontend on Vercel
+
+This repo includes [`vercel.json`](./vercel.json) and a frontend-only build output.
+
+1. Create a new project on Vercel from the same GitHub repo.
+2. Vercel will use:
+   - `buildCommand`: `npm run build:frontend`
+   - `outputDirectory`: `frontend-dist`
+3. Add this environment variable in Vercel:
+   - `BACKEND_URL=https://your-backend-name.onrender.com`
+
+Important:
+- Set `BACKEND_URL` to the Render origin only.
+- Do not add `/api` at the end.
+
+Vercel will proxy `/api/*` to Render automatically, so the frontend keeps using same-origin `/api`.
 
 ## Local setup
 
@@ -33,13 +53,24 @@ The app will be available from the Render service URL, and the frontend will use
 npm run build
 ```
 
-4. Start the app:
+4. Start the backend:
 
 ```bash
 npm start
 ```
 
-Then open `http://localhost:5000`.
+Then open:
+
+```text
+http://localhost:5000
+```
+
+If you want to test the frontend-only build locally:
+
+```bash
+npm run build:frontend
+cd frontend-dist && python3 -m http.server 8888
+```
 
 ## Security
 

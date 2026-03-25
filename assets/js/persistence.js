@@ -36,6 +36,10 @@ function isStaticOnlyHost() {
     || hostname.endsWith('.github.io');
 }
 
+function isVercelHost() {
+  return window.location.hostname.toLowerCase().endsWith('.vercel.app');
+}
+
 function getConfiguredApiUrl() {
   return readQueryApiUrl()
     || normalizeApiUrl(window.SAMA_API_URL)
@@ -55,14 +59,20 @@ function resolveApiUrl() {
   if (!isHttp) return 'http://localhost:5000/api';
   if (port === '5000') return `${origin}/api`;
   if (isLocalHost) return `${protocol}//${normalizedHost}:5000/api`;
+  if (isVercelHost()) return `${origin}/api`;
   if (isStaticOnlyHost()) return null;
   return `${origin}/api`;
 }
 
 function backendUnavailableMessage() {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0') {
+    return lang() === 'en'
+      ? 'Cannot reach the backend server. Start it on http://localhost:5000 and try again.'
+      : 'تعذر الاتصال بالخادم. شغّلي الـ backend على http://localhost:5000 ثم حاولي مرة أخرى.';
+  }
   return lang() === 'en'
-    ? 'Cannot reach the backend server. Start it on http://localhost:5000 and try again.'
-    : 'تعذر الاتصال بالخادم. شغّلي الـ backend على http://localhost:5000 ثم حاولي مرة أخرى.';
+    ? 'Cannot reach the backend server. Check your deployed API URL and try again.'
+    : 'تعذر الاتصال بالـ backend. تأكدي من رابط الـ API المنشور ثم حاولي مرة أخرى.';
 }
 
 function translateApiErrorMessage(status, message) {
