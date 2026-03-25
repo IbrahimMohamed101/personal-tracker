@@ -49,19 +49,25 @@ const MOBILE_NAV_ITEMS=[
 ];
 
 function renderDesktopNavItem(item){
-  return `<div class="nav-item ${item.active?'active':''}" data-page="${item.page}" onclick="goPage('${item.page}')"><span class="nav-icon">${item.icon}</span> ${item.label}${item.badge?` <span class="nav-badge">${item.badge}</span>`:''}</div>`;
+  return `<div class="nav-item ${item.active?'active':''}" data-page="${item.page}" onclick="goPage('${item.page}')"><span class="nav-icon">${item.icon}</span><span class="nav-item-copy"><span class="nav-item-text">${item.label}</span>${item.badge?`<span class="nav-badge">${item.badge}</span>`:''}</span></div>`;
 }
 
 function renderDesktopNavSection(section,index){
-  const content=[`<div class="nav-label">${section.label}</div>`,section.items.map(renderDesktopNavItem).join('')];
+  const content=[`<div class="nav-label"><span class="nav-label-shell">${section.label}</span></div>`,section.items.map(renderDesktopNavItem).join('')];
   if(index<DESKTOP_NAV_SECTIONS.length-1)content.push('<div class="nav-sep"></div>');
   return content.join('');
 }
 function renderDesktopSidebar(){
   return `<nav class="sidebar">
-  <div class="sidebar-logo">
-    <div class="logo-mark">Personal Tracker</div>
-    <div class="logo-sub">منظمك الشخصي</div>
+  <div class="sidebar-shell-head">
+    <div class="sidebar-logo">
+      <div class="logo-mark">Personal Tracker</div>
+      <div class="logo-sub">Life Flight System</div>
+    </div>
+    <button class="sidebar-toggle" id="sidebar-toggle" type="button" onclick="toggleSidebarCollapse()" aria-label="طي الشريط الجانبي" title="طي الشريط الجانبي">
+      <span class="sidebar-toggle-core" aria-hidden="true"></span>
+      <span class="sidebar-toggle-icon" aria-hidden="true">◫</span>
+    </button>
   </div>
   <div class="sidebar-date">
     <strong id="s-date">—</strong>
@@ -82,7 +88,7 @@ function renderDesktopSidebar(){
     <div class="ew-desc" id="ew-desc">طاقة متوسطة — خطوات صغيرة</div>
   </div>
   ${renderXpValueWidget()}
-  <div style="padding: 10px 20px; margin-top: auto;">
+  <div class="sidebar-footer" style="padding: 10px 20px; margin-top: auto;">
     <button class="btn btn-ghost btn-sm" onclick="logout()" style="width:100%;justify-content:center;border-color:var(--red-dim);color:var(--red)">تسجيل الخروج</button>
   </div>
 </nav>`;
@@ -150,156 +156,185 @@ function renderHomePage(){
   const focusReadout=Math.round(focusParts.reduce((sum,value)=>sum+value,0)/Math.max(1,focusParts.length));
   const challengeRecord=typeof getWeekChallengeRecord==='function'?getWeekChallengeRecord():null;
   const challengeText=challengeRecord?(getChallengeText(challengeRecord.id)||challengeRecord.text):'لا يوجد تحدي أسبوعي بعد';
+  const commandReadiness=Math.round((Math.min(100,S.energy*10)+focusReadout+mvdPct)/3);
   return `<div class="page active cockpit-page" id="page-home">
   <canvas id="star-canvas" aria-hidden="true"></canvas>
-  <div class="cockpit-layer parallax-bg" aria-hidden="true"></div>
-  <div class="cockpit-layer parallax-mid" aria-hidden="true"></div>
-  <div class="cockpit-layer parallax-fg" aria-hidden="true"></div>
-  <div class="cockpit-spaceship" aria-hidden="true">
-    <svg viewBox="0 0 220 120" role="presentation">
-      <defs>
-        <linearGradient id="ship-core" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#9fe7ff"></stop>
-          <stop offset="55%" stop-color="#74a7ff"></stop>
-          <stop offset="100%" stop-color="#f5c86a"></stop>
-        </linearGradient>
-        <linearGradient id="ship-glass" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.08)"></stop>
-          <stop offset="100%" stop-color="rgba(159,231,255,0.62)"></stop>
-        </linearGradient>
-      </defs>
-      <g class="ship-body">
-        <path d="M44 61C67 28 100 11 145 18L178 33L189 60L178 88L145 102C101 108 69 91 44 61Z" fill="url(#ship-core)" opacity="0.95"></path>
-        <path d="M76 60C92 43 118 34 147 36L164 49L164 70L147 84C118 86 92 77 76 60Z" fill="url(#ship-glass)" opacity="0.82"></path>
-        <path d="M24 56L47 51L47 70L24 65C18 63 18 58 24 56Z" fill="#6c8df8"></path>
-        <path d="M109 19L132 8L124 31Z" fill="#67d8ff"></path>
-        <path d="M109 101L132 112L124 89Z" fill="#67d8ff"></path>
-        <circle cx="152" cy="60" r="6" fill="#fff3c0"></circle>
-      </g>
-      <g class="ship-thrusters">
-        <path d="M21 57L3 44L3 76L21 63Z" fill="#ffd27a" opacity="0.72"></path>
-        <path d="M17 59L0 53L0 67L17 61Z" fill="#8ae7ff" opacity="0.9"></path>
-      </g>
-    </svg>
-  </div>
+  <div class="cockpit-stellar-layer parallax-bg" aria-hidden="true"></div>
+  <div class="cockpit-stellar-layer parallax-mid" aria-hidden="true"></div>
+  <div class="cockpit-stellar-layer parallax-fg" aria-hidden="true"></div>
+  <div class="cockpit-light-grid" aria-hidden="true"></div>
+  <div class="cockpit-fx-layer" id="cockpit-fx-layer" aria-hidden="true"></div>
   <div class="cockpit-shell">
-    <div class="cockpit-top">
-      <section class="cockpit-card cockpit-top-card cockpit-greeting-card">
-        <div class="cockpit-kicker">Space Control Panel</div>
+    <section class="cockpit-panel cockpit-hero-panel">
+      <div class="cockpit-hero-copy">
+        <div class="cockpit-kicker">Pilot Uplink</div>
         <div class="page-title cockpit-greeting" id="home-greeting">مرحباً بكِ ✦</div>
         <div class="page-subtitle cockpit-subtitle" id="home-sub">جاهزة تبدأ يومك؟</div>
-      </section>
-      <section class="cockpit-card cockpit-top-card cockpit-xp-card">
-        <div class="cockpit-row-head">
-          <span class="cockpit-kicker">Command XP</span>
-          <span class="cockpit-top-value" id="cockpit-level-text">المستوى ${toAr(levelData.level)} ✦</span>
+      </div>
+      <div class="cockpit-hero-strip">
+        <div class="cockpit-hero-pill">
+          <span class="cockpit-hero-label">Streak Reactor</span>
+          <strong class="cockpit-hero-value" id="cockpit-streak-value">${toAr(maxStreak)}</strong>
         </div>
-        <div class="cockpit-xp-track">
-          <div class="cockpit-xp-fill" id="cockpit-home-xp-bar" style="width:${levelData.progress}%"></div>
-          <span class="cockpit-xp-sheen" aria-hidden="true"></span>
+        <div class="cockpit-hero-pill">
+          <span class="cockpit-hero-label">Command Level</span>
+          <strong class="cockpit-hero-value" id="cockpit-level-text">المستوى ${toAr(levelData.level)} ✦</strong>
         </div>
-        <div class="cockpit-top-meta">
-          <span id="cockpit-home-xp-text">${toAr(levelData.current)} / ${toAr(levelData.target)}</span>
-          <span id="cockpit-home-challenge">${escapeHtml(challengeText)}</span>
+        <div class="cockpit-hero-pill cockpit-readiness-pill">
+          <span class="cockpit-hero-label">Readiness</span>
+          <strong class="cockpit-hero-value" id="cockpit-readiness-value">${toAr(commandReadiness)}٪</strong>
         </div>
-      </section>
-      <section class="cockpit-card cockpit-top-card cockpit-streak-card">
-        <div class="cockpit-kicker">Streak Reactor</div>
-        <div class="cockpit-streak-orb">
-          <span class="cockpit-streak-ring"></span>
-          <strong class="cockpit-streak-number" id="cockpit-streak-value">${toAr(maxStreak)}</strong>
-        </div>
-        <div class="cockpit-top-meta">يوم متواصل</div>
-      </section>
-    </div>
+      </div>
+    </section>
 
-    <div class="cockpit-center">
-      <section class="cockpit-card cockpit-mvd-panel">
-        <div class="cockpit-mvd-header">
-          <div>
-            <div class="cockpit-kicker">Mission Protocol</div>
-            <h3>الحد الأدنى لليوم</h3>
-          </div>
-          <div class="cockpit-day-chip" id="mvd-day-lbl">${MVD_LABELS[S.dayType]||''}</div>
+    <section class="cockpit-panel cockpit-xp-panel">
+      <div class="cockpit-panel-head cockpit-panel-head-tight">
+        <div>
+          <div class="cockpit-kicker">XP Reactor</div>
+          <h3>نبض التقدم</h3>
         </div>
-        <div class="mvd-tasks cockpit-task-list" id="mvd-tasks"></div>
-        <div class="cockpit-mvd-progress">
-          <div class="cockpit-progress-copy">
-            <span id="mvd-done-count">٠ من ٠</span>
+        <div class="cockpit-top-metric" id="cockpit-home-xp-text">${toAr(levelData.current)} / ${toAr(levelData.target)}</div>
+      </div>
+      <div class="cockpit-xp-track">
+        <div class="cockpit-xp-fill" id="cockpit-home-xp-bar" style="width:${levelData.progress}%"></div>
+        <span class="cockpit-xp-sheen" aria-hidden="true"></span>
+      </div>
+      <div class="cockpit-xp-meta">
+        <span class="cockpit-challenge-label">Weekly Signal</span>
+        <span class="cockpit-challenge-copy" id="cockpit-home-challenge">${escapeHtml(challengeText)}</span>
+      </div>
+      <div class="cockpit-xp-floats" id="cockpit-xp-floats" aria-hidden="true"></div>
+    </section>
+
+    <div class="cockpit-grid">
+      <section class="cockpit-panel cockpit-missions-panel">
+        <div class="cockpit-panel-head">
+          <div>
+            <div class="cockpit-kicker">Command Queue</div>
+            <h3>أوامر اليوم الحاسمة</h3>
+            <p>أقل أوامر تنفذينها اليوم حتى تظل السفينة في مسارها.</p>
+          </div>
+          <div class="cockpit-progress-chip">
+            <strong id="mvd-done-count">٠ من ٠</strong>
             <span id="mvd-done-pct">٠٪</span>
           </div>
-          <div class="prog-wrap cockpit-progress-shell">
-            <div class="prog-fill prog-gold cockpit-progress-fill" id="mvd-bar" style="width:0%"></div>
+        </div>
+        <div class="mvd-tasks cockpit-task-list" id="mvd-tasks"></div>
+        <div class="cockpit-progress-shell">
+          <div class="cockpit-progress-fill" id="mvd-bar" style="width:0%"></div>
+        </div>
+      </section>
+
+      <section class="cockpit-panel cockpit-core-panel">
+        <div class="cockpit-core-top">
+          <div>
+            <div class="cockpit-kicker">Life Core</div>
+            <h3>مفاعل القيادة الشخصية</h3>
+          </div>
+          <div class="cockpit-core-badge" id="cockpit-ship-mode">Stable Orbit</div>
+        </div>
+        <div class="cockpit-three-shell">
+          <div class="cockpit-three-aura aura-one" aria-hidden="true"></div>
+          <div class="cockpit-three-aura aura-two" aria-hidden="true"></div>
+          <div class="cockpit-three-wave wave-one" aria-hidden="true"></div>
+          <div class="cockpit-three-wave wave-two" aria-hidden="true"></div>
+          <div class="cockpit-three-reticle" aria-hidden="true"></div>
+          <div class="cockpit-three-container" id="cockpit-three-container" aria-hidden="true"></div>
+        </div>
+        <div class="cockpit-core-telemetry">
+          <div class="cockpit-telemetry-item">
+            <div class="cockpit-telemetry-head"><span>Energy Core</span><strong id="cockpit-energy-value">${toAr(S.energy)}/١٠</strong></div>
+            <div class="cockpit-telemetry-track"><div class="cockpit-telemetry-fill energy" id="cockpit-energy-bar" style="width:${S.energy*10}%"></div></div>
+          </div>
+          <div class="cockpit-telemetry-item">
+            <div class="cockpit-telemetry-head"><span>Focus Vector</span><strong id="cockpit-focus-value">${toAr(focusReadout)}٪</strong></div>
+            <div class="cockpit-telemetry-track"><div class="cockpit-telemetry-fill focus" id="cockpit-focus-bar" style="width:${focusReadout}%"></div></div>
+          </div>
+          <div class="cockpit-level-chip">
+            <span>Level Core</span>
+            <strong id="cockpit-level-badge">${toAr(S.level||1)}</strong>
           </div>
         </div>
       </section>
 
-      <aside class="cockpit-card cockpit-control-panel">
-        <div class="cockpit-control-head">
-          <div class="cockpit-kicker">Systems Control</div>
-          <span class="cockpit-control-badge" id="cockpit-ship-mode">Stable Orbit</span>
+      <aside class="cockpit-panel cockpit-telemetry-panel">
+        <div class="cockpit-panel-head">
+          <div>
+            <div class="cockpit-kicker">Telemetry Deck</div>
+            <h3>بصمة الرحلة الحالية</h3>
+          </div>
+          <div class="cockpit-mini-badge">LIVE</div>
         </div>
-        <div class="control-meter">
-          <div class="control-meter-head"><span>Energy Core</span><strong id="cockpit-energy-value">${toAr(S.energy)}/١٠</strong></div>
-          <div class="control-meter-track"><div class="control-meter-fill energy" id="cockpit-energy-bar" style="width:${S.energy*10}%"></div></div>
+        <div class="cockpit-stat-grid">
+          <div class="cockpit-stat-card stat-card">
+            <div class="stat-label">أعلى سلسلة</div>
+            <div class="stat-value cockpit-stat-value" id="stat-streak" data-counter-format="int">٠</div>
+            <div class="stat-change stat-up">يوم متواصل</div>
+          </div>
+          <div class="cockpit-stat-card stat-card">
+            <div class="stat-label">إجمالي التحويش</div>
+            <div class="stat-value cockpit-stat-value" id="stat-savings" data-counter-format="money">٠</div>
+            <div class="stat-change stat-neutral" id="stat-savings-label">${currencyShortName()}</div>
+          </div>
+          <div class="cockpit-stat-card stat-card">
+            <div class="stat-label">عادات اليوم</div>
+            <div class="stat-value cockpit-stat-value" id="stat-habits" data-counter-format="percent">٠٪</div>
+            <div class="stat-change stat-neutral" id="stat-habits-lbl">من الأهداف</div>
+          </div>
+          <div class="cockpit-stat-card stat-card">
+            <div class="stat-label">مشاكل محلولة</div>
+            <div class="stat-value cockpit-stat-value" id="stat-solved" data-counter-format="int">٠</div>
+            <div class="stat-change stat-neutral">مشكلة</div>
+          </div>
         </div>
-        <div class="control-meter">
-          <div class="control-meter-head"><span>Focus Vector</span><strong id="cockpit-focus-value">${toAr(focusReadout)}٪</strong></div>
-          <div class="control-meter-track"><div class="control-meter-fill focus" id="cockpit-focus-bar" style="width:${focusReadout}%"></div></div>
-        </div>
-        <div class="control-level-badge">
-          <span>Level Core</span>
-          <strong id="cockpit-level-badge">${toAr(S.level||1)}</strong>
+        <div class="cockpit-scan-card">
+          <div class="cockpit-scan-row">
+            <span>Mission Sync</span>
+            <strong id="cockpit-sync-mvd">${toAr(mvdPct)}٪</strong>
+          </div>
+          <div class="cockpit-scan-row">
+            <span>Habit Signal</span>
+            <strong id="cockpit-sync-habits">${toAr(habitsPct)}٪</strong>
+          </div>
+          <div class="cockpit-scan-row">
+            <span>Task Matrix</span>
+            <strong id="cockpit-sync-tasks">${toAr(tasksPct)}٪</strong>
+          </div>
         </div>
       </aside>
     </div>
 
-    <div class="cockpit-stats-row">
-      <div class="cockpit-stat-card stat-card">
-        <div class="stat-label">أعلى سلسلة</div>
-        <div class="stat-value cockpit-stat-value" id="stat-streak" data-counter-format="int">٠</div>
-        <div class="stat-change stat-up">يوم متواصل</div>
+    <section class="cockpit-panel cockpit-launch-deck">
+      <div class="cockpit-panel-head">
+        <div>
+          <div class="cockpit-kicker">Launch Deck</div>
+          <h3>بوابات التحكم السريع</h3>
+        </div>
+        <div class="cockpit-top-metric">Interactive Links</div>
       </div>
-      <div class="cockpit-stat-card stat-card">
-        <div class="stat-label">إجمالي التحويش</div>
-        <div class="stat-value cockpit-stat-value" id="stat-savings" data-counter-format="money">٠</div>
-        <div class="stat-change stat-neutral" id="stat-savings-label">${currencyShortName()}</div>
-      </div>
-      <div class="cockpit-stat-card stat-card">
-        <div class="stat-label">عادات اليوم</div>
-        <div class="stat-value cockpit-stat-value" id="stat-habits" data-counter-format="percent">٠٪</div>
-        <div class="stat-change stat-neutral" id="stat-habits-lbl">من الأهداف</div>
-      </div>
-      <div class="cockpit-stat-card stat-card">
-        <div class="stat-label">مشاكل محلولة</div>
-        <div class="stat-value cockpit-stat-value" id="stat-solved" data-counter-format="int">٠</div>
-        <div class="stat-change stat-neutral">مشكلة</div>
-      </div>
-
-      <div class="cockpit-life-grid">
-        <button class="cockpit-life-card life-card" onclick="goPage('habits')">
-          <span class="lc-icon">😴</span><span class="lc-name">النوم</span><span class="lc-status lc-warn" id="lc-sleep">غير منتظم</span>
+      <div class="cockpit-link-grid">
+        <button class="cockpit-link-tile" onclick="goPage('tasks')">
+          <span class="cockpit-link-kicker">Mission Bay</span>
+          <strong>المهام اليومية</strong>
+          <span>افتحي قائمة التنفيذ والمهام المتكررة.</span>
         </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('habits')">
-          <span class="lc-icon">🦷</span><span class="lc-name">الدراسة</span><span class="lc-status lc-warn" id="lc-study">ضعيفة</span>
+        <button class="cockpit-link-tile" onclick="goPage('habits')">
+          <span class="cockpit-link-kicker">Habit Loop</span>
+          <strong>العادات اليومية</strong>
+          <span>راقبي الالتزام والسلاسل والتكرار الأسبوعي.</span>
         </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('habits')">
-          <span class="lc-icon">📖</span><span class="lc-name">الروح</span><span class="lc-status lc-warn" id="lc-spirit">في النص</span>
+        <button class="cockpit-link-tile" onclick="goPage('money')">
+          <span class="cockpit-link-kicker">Wealth Vault</span>
+          <strong>المال والتحويش</strong>
+          <span>الدخل والتحويش والميزانية في شاشة واحدة.</span>
         </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('habits')">
-          <span class="lc-icon">🌱</span><span class="lc-name">التطوير</span><span class="lc-status lc-neutral" id="lc-dev">لسه</span>
-        </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('money')">
-          <span class="lc-icon">💰</span><span class="lc-name">الفلوس</span><span class="lc-status lc-neutral" id="lc-money">ابدأي</span>
-        </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('tasks')">
-          <span class="lc-icon">✅</span><span class="lc-name">المهام</span><span class="lc-status lc-neutral" id="lc-tasks">رتبيها</span>
-        </button>
-        <button class="cockpit-life-card life-card" onclick="goPage('journal')">
-          <span class="lc-icon">📝</span><span class="lc-name">اليومية</span><span class="lc-status lc-warn" id="lc-journal">لم تُكتب</span>
+        <button class="cockpit-link-tile" onclick="goPage('journal')">
+          <span class="cockpit-link-kicker">Memory Log</span>
+          <strong>اليومية</strong>
+          <span>اكتبي ما حدث اليوم وثبتي الإشارات المهمة.</span>
         </button>
       </div>
-    </div>
+    </section>
   </div>
 </div>`;
 }
@@ -854,5 +889,6 @@ function renderShellOverlays(){
 function renderAppShell(){
   const root=document.getElementById('app-root');
   if(!root)return;
-  root.innerHTML=`<div class="app">${renderDesktopSidebar()}<main class="main">${renderMobileShell()}${renderPages()}</main></div>${renderShellOverlays()}`;
+  const sidebarCollapsed=localStorage.getItem('sama_sidebar_collapsed')==='1';
+  root.innerHTML=`<div class="app ${sidebarCollapsed?'sidebar-collapsed':''}">${renderDesktopSidebar()}<main class="main">${renderMobileShell()}${renderPages()}</main></div>${renderShellOverlays()}`;
 }

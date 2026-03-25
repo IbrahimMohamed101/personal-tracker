@@ -16,7 +16,7 @@ function renderMVD(){
   const container=document.getElementById('mvd-tasks');
   const lbl=document.getElementById('mvd-day-lbl');
   if(lbl)lbl.textContent=MVD_LABELS[S.dayType]||'';
-  if(container)container.innerHTML=tasks.map((task,index)=>`<label class="cockpit-task mvd-task ${done.includes(index)?'done':''}" data-task-index="${index}"><input type="checkbox" ${done.includes(index)?'checked':''} onchange="toggleMVD(${index},'${key}',this)"><span class="cockpit-task-switch" aria-hidden="true"><span class="cockpit-task-thumb"></span></span><span class="cockpit-task-copy"><span class="cockpit-task-kicker">Directive ${toAr(index+1)}</span><span class="cockpit-task-text text">${escapeHtml(task)}</span></span><span class="cockpit-task-halo" aria-hidden="true"></span></label>`).join('');
+  if(container)container.innerHTML=tasks.map((task,index)=>`<label class="cockpit-task mvd-task ${done.includes(index)?'done':''}" data-task-index="${index}"><input type="checkbox" ${done.includes(index)?'checked':''} onchange="toggleMVD(${index},'${key}',this)"><span class="cockpit-task-switch" aria-hidden="true"><span class="cockpit-task-thumb"></span></span><span class="cockpit-task-copy"><span class="cockpit-task-kicker">Command ${toAr(index+1)}</span><span class="cockpit-task-text text">${escapeHtml(task)}</span><span class="cockpit-task-hint">${done.includes(index)?'Synced with the core':'Awaiting pilot action'}</span></span><span class="cockpit-task-status">${done.includes(index)?'LIVE':'ARM'}</span><span class="cockpit-task-halo" aria-hidden="true"></span></label>`).join('');
   const doneCount=done.length;
   const pct=Math.round(doneCount/tasks.length*100);
   const doneCountEl=document.getElementById('mvd-done-count');
@@ -48,7 +48,6 @@ function toggleMVD(idx,key,el){
 function renderHome(){
   renderMVD();
   renderStats();
-  updateLifeCards();
   document.querySelectorAll('.dt-btn').forEach(btn=>btn.classList.toggle('active',btn.getAttribute('data-type')===S.dayType));
   if(typeof window.dashboardCockpitInit==='function')window.dashboardCockpitInit();
 }

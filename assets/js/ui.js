@@ -410,6 +410,7 @@ function setEnergy(v,persist=true){
   const active=document.querySelector('.page.active');
   if(active&&active.id==='page-analytics')renderAnalytics();
   if(active&&active.id==='page-journal')renderJournal();
+  if(active&&active.id==='page-home'&&typeof window.dashboardCockpitRefresh==='function')window.dashboardCockpitRefresh({boost:false});
   if(persist)save({delay:ENERGY_SYNC_DELAY_MS});
 }
 
