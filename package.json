@@ -1,0 +1,11 @@
+{
+  "name": "personal-tracker-deploy",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix server",
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
