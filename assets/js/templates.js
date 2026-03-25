@@ -60,8 +60,8 @@ function renderDesktopNavSection(section,index){
 function renderDesktopSidebar(){
   return `<nav class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-mark">Sama OS</div>
-    <div class="logo-sub">نظامك الشخصي</div>
+    <div class="logo-mark">Personal Tracker</div>
+    <div class="logo-sub">منظمك الشخصي</div>
   </div>
   <div class="sidebar-date">
     <strong id="s-date">—</strong>
@@ -89,7 +89,7 @@ function renderDesktopSidebar(){
 }
 
 function renderXpValueWidget(){
-  const username = localStorage.getItem('sama_username') || 'سما';
+  const username = escapeHtml(localStorage.getItem('sama_username') || (lang()==='en' ? 'User' : 'مستخدم جديد'));
   return `<div class="xp-widget">
     <div class="xp-widget-head">
       <div class="xp-widget-title" id="xp-level-title">المستوى ١ ✦</div>
@@ -110,8 +110,8 @@ function renderMobileShell(){
   return `<div class="mobile-shell">
     <div class="mobile-topbar">
       <div>
-        <div class="mobile-brand">Sama OS</div>
-        <div class="mobile-caption">نظامك الشخصي</div>
+        <div class="mobile-brand">Personal Tracker</div>
+        <div class="mobile-caption">منظمك الشخصي</div>
       </div>
       <div class="mobile-side-meta">
         <div class="mobile-energy">الطاقة <strong id="m-energy-mini">٥/١٠</strong></div>
@@ -139,7 +139,7 @@ function renderHomePage(){
   <div class="page-header">
     <div class="page-header-row">
       <div>
-        <div class="page-title" id="home-greeting">مرحباً يا سما ✦</div>
+        <div class="page-title" id="home-greeting">مرحباً بكِ ✦</div>
         <div class="page-subtitle" id="home-sub">جاهزة تبدأ يومك؟</div>
       </div>
       <div class="page-tools">
@@ -546,7 +546,7 @@ function renderGuidePage(){
   return `<div class="page" id="page-guide">
   <div class="page-header">
     <div class="page-title">دليل التطور 💡</div>
-    <div class="page-subtitle">كيف تستخدمين Sama OS لتحقيق أقصى استفادة وبناء حياة متوازنة؟</div>
+    <div class="page-subtitle">كيف تستخدمين Personal Tracker لتحقيق أقصى استفادة وبناء حياة متوازنة؟</div>
   </div>
   <div class="tips-list">
     

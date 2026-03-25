@@ -7,8 +7,8 @@ function renderLoginScreen(root) {
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-header">
-           <h1 class="logo-text">Sama OS</h1>
-           <p class="auth-subtitle">نظامك الشخصي المتكامل</p>
+           <h1 class="logo-text">Personal Tracker</h1>
+           <p class="auth-subtitle">منظمك الشخصي المتكامل</p>
         </div>
         ${apiConfig}
         <div id="auth-form-container">
@@ -202,7 +202,7 @@ function applySettings(){
   document.documentElement.style.setProperty('--font-scale',settings.fontScale);
   document.documentElement.lang=settings.language;
   document.documentElement.dir=settings.language==='en'?'ltr':'rtl';
-  document.title=settings.language==='en'?'Sama OS - Personal System':'Sama OS — نظامك الشخصي';
+  document.title=settings.language==='en'?'Personal Tracker - Personal System':'Personal Tracker — منظمك الشخصي';
 
   const fontRange=document.getElementById('font-scale-range');
   const fontLabel=document.getElementById('font-scale-label');

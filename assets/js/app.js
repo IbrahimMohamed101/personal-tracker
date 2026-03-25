@@ -1,12 +1,19 @@
 // INIT
+function currentUserDisplayName(){
+  const username = localStorage.getItem('sama_username');
+  const cleaned = String(username || '').trim();
+  return cleaned || (lang()==='en' ? 'there' : 'المستخدمة');
+}
+
 function applyGreeting(){
   const hr=new Date().getHours();
   const greetEl=document.getElementById('home-greeting');
+  const username=currentUserDisplayName();
   if(greetEl){
     if(lang()==='en'){
-      greetEl.textContent=hr<5?'Late Night, Sama ✦':hr<12?'Good Morning, Sama ✦':hr<17?'Good Afternoon, Sama ✦':'Good Evening, Sama ✦';
+      greetEl.textContent=hr<5?`Late Night, ${username} ✦`:hr<12?`Good Morning, ${username} ✦`:hr<17?`Good Afternoon, ${username} ✦`:`Good Evening, ${username} ✦`;
     } else {
-      greetEl.textContent=(hr<5?'أهلاً بكِ':hr<12?'صباح الخير':hr<17?'مساء النور':'مساء الخير')+' يا سما ✦';
+      greetEl.textContent=`${hr<5?'أهلاً بكِ':hr<12?'صباح الخير':hr<17?'مساء النور':'مساء الخير'} يا ${username} ✦`;
     }
   }
   const subEl=document.getElementById('home-sub');
@@ -77,7 +84,7 @@ function renderApp() {
         renderLoginScreen(root);
     } else {
         root.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;gap:20px;">' +
-            '<h2>Sama OS</h2>' +
+            '<h2>Personal Tracker</h2>' +
             '<button onclick="showLogin()" style="padding:10px 20px;border-radius:12px;background:var(--accent);color:white;border:none;">تسجيل الدخول</button>' +
             '</div>';
     }
