@@ -14,6 +14,20 @@ function readBackendUrl() {
   return rawValue;
 }
 
+function sanitizeProxyResponseHeaders(upstreamHeaders) {
+  const headers = new Headers(upstreamHeaders);
+  headers.set('cache-control', 'no-store');
+
+  // The platform fetch may decode compressed upstream bodies before we stream
+  // them back to the browser. If we keep the original encoding/length headers,
+  // browsers can fail with ERR_CONTENT_DECODING_FAILED.
+  headers.delete('content-encoding');
+  headers.delete('content-length');
+  headers.delete('transfer-encoding');
+
+  return headers;
+}
+
 export default {
   async fetch(request) {
     const backendUrl = readBackendUrl();
@@ -35,6 +49,7 @@ export default {
 
     const headers = new Headers(request.headers);
     headers.delete('host');
+    headers.delete('accept-encoding');
 
     let body;
     if (!['GET', 'HEAD'].includes(request.method.toUpperCase())) {
@@ -53,8 +68,7 @@ export default {
       return jsonResponse({ message: 'Failed to reach backend service.' }, 502);
     }
 
-    const responseHeaders = new Headers(upstream.headers);
-    responseHeaders.set('cache-control', 'no-store');
+    const responseHeaders = sanitizeProxyResponseHeaders(upstream.headers);
 
     return new Response(upstream.body, {
       status: upstream.status,
