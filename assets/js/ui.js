@@ -65,16 +65,39 @@ function clearAuthApiUrl() {
   window.location.reload();
 }
 
+function validateAuthFields(username, password) {
+  const normalizedUsername = String(username || '').trim();
+  const normalizedPassword = String(password || '');
+
+  if (!normalizedUsername) {
+    throw new Error(lang() === 'en' ? 'Username is required' : 'اسم المستخدم مطلوب');
+  }
+
+  if (normalizedUsername.length < 3) {
+    throw new Error(lang() === 'en' ? 'Username must be at least 3 characters' : 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل');
+  }
+
+  if (!normalizedPassword) {
+    throw new Error(lang() === 'en' ? 'Password is required' : 'كلمة المرور مطلوبة');
+  }
+
+  if (normalizedPassword.length < 6) {
+    throw new Error(lang() === 'en' ? 'Password must be at least 6 characters' : 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+  }
+
+  return { username: normalizedUsername, password: normalizedPassword };
+}
+
 function getLoginFormHtml() {
   return `
     <form onsubmit="handleLogin(event)" class="auth-form">
       <div class="input-group">
         <label>اسم المستخدم</label>
-        <input type="text" id="auth-username" required placeholder="ادخلي اسم المستخدم">
+        <input type="text" id="auth-username" required minlength="3" maxlength="40" autocomplete="username" placeholder="ادخلي اسم المستخدم">
       </div>
       <div class="input-group">
         <label>كلمة المرور</label>
-        <input type="password" id="auth-password" required placeholder="••••••••">
+        <input type="password" id="auth-password" required minlength="6" autocomplete="current-password" placeholder="••••••••">
       </div>
       <button type="submit" class="btn btn-primary auth-btn">تسجيل الدخول</button>
       <p class="auth-switch">ليس لديكِ حساب؟ <a href="#" onclick="showRegister(event)">إنشاء حساب جديد</a></p>
@@ -87,15 +110,15 @@ function getRegisterFormHtml() {
     <form onsubmit="handleRegister(event)" class="auth-form">
       <div class="input-group">
         <label>اسم المستخدم</label>
-        <input type="text" id="auth-username" required placeholder="اختاري اسم مستخدم">
+        <input type="text" id="auth-username" required minlength="3" maxlength="40" autocomplete="username" placeholder="اختاري اسم مستخدم">
       </div>
       <div class="input-group">
         <label>كلمة المرور</label>
-        <input type="password" id="auth-password" required placeholder="••••••••">
+        <input type="password" id="auth-password" required minlength="6" autocomplete="new-password" placeholder="••••••••">
       </div>
       <div class="input-group">
         <label>تأكيد كلمة المرور</label>
-        <input type="password" id="auth-confirm-password" required placeholder="••••••••">
+        <input type="password" id="auth-confirm-password" required minlength="6" autocomplete="new-password" placeholder="••••••••">
       </div>
       <button type="submit" class="btn btn-primary auth-btn">إنشاء الحساب</button>
       <p class="auth-switch">لديكِ حساب بالفعل؟ <a href="#" onclick="showLogin(event)">تسجيل الدخول</a></p>
@@ -115,11 +138,13 @@ function showRegister(e) {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const u = document.getElementById('auth-username').value;
-  const p = document.getElementById('auth-password').value;
   try {
+    const { username, password } = validateAuthFields(
+      document.getElementById('auth-username').value,
+      document.getElementById('auth-password').value
+    );
     setLoadingVisible(true);
-    await loginUser(u, p);
+    await loginUser(username, password);
   } catch (err) {
     toast(err.message, 3000);
   } finally {
@@ -129,13 +154,23 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
   e.preventDefault();
-  const u = document.getElementById('auth-username').value;
-  const p = document.getElementById('auth-password').value;
+  let credentials;
+  try {
+    credentials = validateAuthFields(
+      document.getElementById('auth-username').value,
+      document.getElementById('auth-password').value
+    );
+  } catch (err) {
+    toast(err.message, 3000);
+    return;
+  }
+
+  const { username, password } = credentials;
   const cp = document.getElementById('auth-confirm-password').value;
-  if (p !== cp) return toast('كلمات المرور غير متوافقة');
+  if (password !== cp) return toast('كلمات المرور غير متوافقة');
   try {
     setLoadingVisible(true);
-    await registerUser(u, p);
+    await registerUser(username, password);
   } catch (err) {
     toast(err.message, 3000);
   } finally {

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const databaseReady = require('../middleware/databaseReady');
 const TrackerData = require('../models/TrackerData');
 
 // GET State
-router.get('/state', auth, async (req, res) => {
+router.get('/state', databaseReady, auth, async (req, res) => {
     try {
         let state = await TrackerData.findOne({ userId: req.user.id });
         if (!state) {
@@ -18,7 +19,7 @@ router.get('/state', auth, async (req, res) => {
 });
 
 // POST/PUT State (Sync)
-router.post('/state', auth, async (req, res) => {
+router.post('/state', databaseReady, auth, async (req, res) => {
     try {
         const data = req.body;
         let state = await TrackerData.findOne({ userId: req.user.id });

@@ -65,6 +65,33 @@ function backendUnavailableMessage() {
     : 'تعذر الاتصال بالخادم. شغّلي الـ backend على http://localhost:5000 ثم حاولي مرة أخرى.';
 }
 
+function translateApiErrorMessage(status, message) {
+  const normalized = String(message || '').trim();
+  if (!normalized) {
+    return lang() === 'en' ? 'API Error' : 'حدث خطأ في الخادم';
+  }
+
+  if (lang() === 'en') {
+    return normalized;
+  }
+
+  const translations = {
+    'Database connection unavailable': 'قاعدة البيانات غير متاحة حاليًا. جرّبي مرة أخرى بعد قليل.',
+    'User already exists': 'اسم المستخدم مستخدم بالفعل.',
+    'Invalid credentials': 'اسم المستخدم أو كلمة المرور غير صحيحة.',
+    'Username is required': 'اسم المستخدم مطلوب.',
+    'Username must be at least 3 characters': 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.',
+    'Username must be 40 characters or fewer': 'اسم المستخدم يجب ألا يزيد عن 40 حرفًا.',
+    'Password is required': 'كلمة المرور مطلوبة.',
+    'Password must be at least 6 characters': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
+    'Access denied': 'يجب تسجيل الدخول أولًا.',
+    'Invalid token': 'جلسة الدخول غير صالحة. سجلي الدخول مرة أخرى.',
+    'Server error': 'حدث خطأ في الخادم.',
+  };
+
+  return translations[normalized] || normalized;
+}
+
 function missingApiConfigurationMessage() {
   return lang() === 'en'
     ? 'This deployed site has no backend configured yet. Add your API URL first.'
@@ -123,7 +150,7 @@ async function apiRequest(path, options = {}) {
   }
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || 'API Error');
+    throw new Error(translateApiErrorMessage(response.status, error.message));
   }
   return response.json();
 }
@@ -131,7 +158,7 @@ async function apiRequest(path, options = {}) {
 async function loginUser(username, password) {
   const data = await apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username: String(username || '').trim(), password: String(password || '') })
   });
   if (!data) throw new Error('Login failed');
   AUTH_TOKEN = data.token;
@@ -144,7 +171,7 @@ async function loginUser(username, password) {
 async function registerUser(username, password) {
   const data = await apiRequest('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username: String(username || '').trim(), password: String(password || '') })
   });
   if (!data) throw new Error('Registration failed');
   AUTH_TOKEN = data.token;
