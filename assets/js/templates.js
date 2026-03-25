@@ -149,110 +149,69 @@ function renderHomePage(){
   const tasksPct=todayTasks.length?Math.round(todayTasks.filter(task=>task.done).length/todayTasks.length*100):0;
   const mvdList=MVD_LISTS[S.dayType]||MVD_LISTS.normal;
   const mvdKey='mvd_'+S.dayType+'_'+today;
-  const mvdPct=mvdList.length?Math.round(((S.mvdDone&&S.mvdDone[mvdKey])?S.mvdDone[mvdKey].length:0)/mvdList.length*100):0;
+  const mvdDoneCount=(S.mvdDone&&S.mvdDone[mvdKey])?S.mvdDone[mvdKey].length:0;
+  const mvdPct=mvdList.length?Math.round(mvdDoneCount/mvdList.length*100):0;
   const focusParts=[habitsPct,mvdPct];
   if(todayTasks.length)focusParts.push(tasksPct);
   const focusReadout=Math.round(focusParts.reduce((sum,value)=>sum+value,0)/Math.max(1,focusParts.length));
   const challengeRecord=typeof getWeekChallengeRecord==='function'?getWeekChallengeRecord():null;
   const challengeText=challengeRecord?(getChallengeText(challengeRecord.id)||challengeRecord.text):'لا يوجد تحدي أسبوعي بعد';
+  const glyphs=[
+    {label:'ARC // NULL', cls:'glyph-a'},
+    {label:'VX-09', cls:'glyph-b'},
+    {label:'MIRROR LOOP', cls:'glyph-c'},
+    {label:'OMEGA TRACE', cls:'glyph-d'},
+    {label:'NO SIGNAL', cls:'glyph-e'},
+    {label:'PRISM FIELD', cls:'glyph-f'},
+  ];
   return `<div class="page active cockpit-page" id="page-home">
   <canvas id="star-canvas" aria-hidden="true"></canvas>
-  <div class="cockpit-stellar-layer parallax-bg" aria-hidden="true"></div>
-  <div class="cockpit-stellar-layer parallax-mid" aria-hidden="true"></div>
-  <div class="cockpit-stellar-layer parallax-fg" aria-hidden="true"></div>
+  <div class="cockpit-cursor-glow" id="cockpit-cursor-glow" aria-hidden="true"></div>
+  <div class="cockpit-warp-overlay" id="cockpit-warp-overlay" aria-hidden="true"></div>
+  <div class="cockpit-scanner-line" aria-hidden="true"></div>
+  <div class="cockpit-noise-layer" aria-hidden="true"></div>
   <div class="cockpit-light-grid" aria-hidden="true"></div>
+  <div class="cockpit-corners" aria-hidden="true">
+    <span class="cockpit-corner tl"></span>
+    <span class="cockpit-corner tr"></span>
+    <span class="cockpit-corner bl"></span>
+    <span class="cockpit-corner br"></span>
+  </div>
   <div class="cockpit-fx-layer" id="cockpit-fx-layer" aria-hidden="true"></div>
   <div class="cockpit-shell">
     <div class="cockpit-stage">
       <section class="cockpit-hero-stage">
-        <div class="cockpit-kicker">Pilot Uplink</div>
-        <div class="page-title cockpit-greeting" id="home-greeting">مرحباً بكِ ✦</div>
-        <div class="page-subtitle cockpit-subtitle" id="home-sub">جاهزة تبدأ يومك؟</div>
-        <p class="cockpit-hero-note">مشهد هادئ، قلب نابض، ومساحة مفتوحة للتركيز الكامل.</p>
+        <div class="cockpit-kicker">Spectral Broadcast</div>
+        <div class="page-title cockpit-greeting cockpit-glitch-title" id="home-greeting" data-text="مرحباً بكِ ✦">مرحباً بكِ ✦</div>
+        <div class="page-subtitle cockpit-subtitle" id="home-sub">مركز التحكم الشخصي جاهز للتشغيل</div>
       </section>
-
-      <div class="cockpit-float-controls">
-        <button class="cockpit-float-button is-primary" id="cockpit-mission-toggle" type="button" onclick="toggleMissionDrawer()">
-          <span class="cockpit-float-kicker">Mission Drawer</span>
-          <strong id="mvd-done-count">٠ من ٠</strong>
-        </button>
-        <button class="cockpit-float-button" id="cockpit-scene-toggle" type="button" onclick="toggleSidebarVisibility()">
-          <span class="cockpit-float-kicker">Scene Mode</span>
-          <strong>إخفاء الشريط</strong>
-        </button>
-      </div>
 
       <section class="cockpit-core-stage">
         <div class="cockpit-core-shell">
           <div class="cockpit-core-rim rim-one" aria-hidden="true"></div>
           <div class="cockpit-core-rim rim-two" aria-hidden="true"></div>
+          <div class="cockpit-core-rim rim-three" aria-hidden="true"></div>
           <div class="cockpit-core-grid" aria-hidden="true"></div>
-          <div class="cockpit-three-shell">
-            <div class="cockpit-three-aura aura-one" aria-hidden="true"></div>
-            <div class="cockpit-three-aura aura-two" aria-hidden="true"></div>
-            <div class="cockpit-three-wave wave-one" aria-hidden="true"></div>
-            <div class="cockpit-three-wave wave-two" aria-hidden="true"></div>
+          <div class="cockpit-energy-ripple ripple-one" aria-hidden="true"></div>
+          <div class="cockpit-energy-ripple ripple-two" aria-hidden="true"></div>
+          <div class="cockpit-energy-ripple ripple-three" aria-hidden="true"></div>
+
+          <button class="cockpit-core-trigger" id="cockpit-core-trigger" type="button" onclick="triggerCockpitChaos('core')" aria-label="إطلاق الفوضى">
             <div class="cockpit-three-reticle" aria-hidden="true"></div>
-            <div class="cockpit-three-container" id="cockpit-three-container" aria-hidden="true"></div>
-          </div>
-          <div class="cockpit-orbit-hud orbit-energy">
-            <span>Energy Core</span>
-            <strong id="cockpit-energy-value">${toAr(S.energy)}/١٠</strong>
-            <div class="cockpit-orbit-track"><div class="cockpit-orbit-fill energy" id="cockpit-energy-bar" style="width:${S.energy*10}%"></div></div>
-          </div>
-          <div class="cockpit-orbit-hud orbit-focus">
-            <span>Focus Vector</span>
-            <strong id="cockpit-focus-value">${toAr(focusReadout)}٪</strong>
-            <div class="cockpit-orbit-track"><div class="cockpit-orbit-fill focus" id="cockpit-focus-bar" style="width:${focusReadout}%"></div></div>
-          </div>
-          <div class="cockpit-orbit-hud orbit-mode">
-            <span>Mode</span>
-            <strong id="cockpit-ship-mode">Stable Orbit</strong>
-          </div>
-          <div class="cockpit-core-caption">
-            <div class="cockpit-kicker">Life Core</div>
-            <h3>مفاعل القيادة الشخصية</h3>
-            <p>كل الحركة تدور حول مركز واحد، وكل تفاعل يرسل موجة جديدة في المشهد.</p>
-          </div>
+            <div class="cockpit-three-shell">
+              <div class="cockpit-three-aura aura-one" aria-hidden="true"></div>
+              <div class="cockpit-three-aura aura-two" aria-hidden="true"></div>
+              <div class="cockpit-three-wave wave-one" aria-hidden="true"></div>
+              <div class="cockpit-three-wave wave-two" aria-hidden="true"></div>
+              <div class="cockpit-three-wave wave-three" aria-hidden="true"></div>
+              <div class="cockpit-three-container" id="cockpit-three-container" aria-hidden="true"></div>
+            </div>
+            <span class="cockpit-core-prompt" id="cockpit-core-prompt">اضغط لتفعيل النظام</span>
+          </button>
         </div>
       </section>
 
-      <div class="cockpit-xp-ribbon">
-        <div class="cockpit-xp-ribbon-head">
-          <span class="cockpit-kicker">XP Signal</span>
-          <span id="cockpit-home-xp-text">${toAr(levelData.current)} / ${toAr(levelData.target)}</span>
-        </div>
-        <div class="cockpit-xp-track compact">
-          <div class="cockpit-xp-fill" id="cockpit-home-xp-bar" style="width:${levelData.progress}%"></div>
-          <span class="cockpit-xp-sheen" aria-hidden="true"></span>
-        </div>
-      </div>
     </div>
-
-    <div class="cockpit-mission-backdrop" id="cockpit-mission-backdrop" onclick="closeMissionDrawer()"></div>
-    <aside class="cockpit-mission-drawer" id="cockpit-mission-drawer">
-      <button class="cockpit-drawer-close" type="button" onclick="closeMissionDrawer()" aria-label="إغلاق لوحة المهام">✕</button>
-      <div class="cockpit-drawer-head">
-        <div>
-          <div class="cockpit-kicker">Mission Control</div>
-          <h3>الحد الأدنى لليوم</h3>
-          <p id="cockpit-home-challenge">${escapeHtml(challengeText)}</p>
-        </div>
-        <div class="cockpit-drawer-meta">
-          <span id="cockpit-level-text">المستوى ${toAr(levelData.level)} ✦</span>
-          <strong id="mvd-done-pct">${toAr(mvdPct)}٪</strong>
-        </div>
-      </div>
-      <div class="cockpit-drawer-telemetry">
-        <div class="cockpit-drawer-line"><span>Mission Sync</span><strong id="cockpit-sync-mvd">${toAr(mvdPct)}٪</strong></div>
-        <div class="cockpit-drawer-line"><span>Habit Signal</span><strong id="cockpit-sync-habits">${toAr(habitsPct)}٪</strong></div>
-        <div class="cockpit-drawer-line"><span>Task Matrix</span><strong id="cockpit-sync-tasks">${toAr(tasksPct)}٪</strong></div>
-      </div>
-      <div class="cockpit-progress-shell drawer-progress">
-        <div class="cockpit-progress-fill" id="mvd-bar" style="width:${mvdPct}%"></div>
-      </div>
-      <div class="mvd-tasks cockpit-task-list drawer-task-list" id="mvd-tasks"></div>
-    </aside>
   </div>
 </div>`;
 }

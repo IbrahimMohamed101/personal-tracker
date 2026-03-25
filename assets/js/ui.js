@@ -379,7 +379,10 @@ function goPage(id){
   page.classList.add('active');
   syncPageNav(id);
   const main=document.querySelector('.main');
-  if(main)main.scrollTop=0;
+  if(main){
+    main.scrollTop=0;
+    main.classList.toggle('cockpit-active', id === 'home' && page.classList.contains('cockpit-page'));
+  }
   if(id==='tasks')renderTasks();
   if(id==='habits')renderHabits();
   if(id==='money')renderMoney();
