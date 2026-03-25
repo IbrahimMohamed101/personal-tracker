@@ -10,7 +10,6 @@
     pageResizeHandler:null,
     pointerMoveHandler:null,
     pointerLeaveHandler:null,
-    statsObserver:null,
     renderer:null,
     scene:null,
     camera:null,
@@ -29,11 +28,11 @@
     boost:0,
     mouseTarget:{x:0,y:0},
     mouseCurrent:{x:0,y:0},
+    drawerOpen:false,
     globalBound:false,
     boostTimer:0,
+    keyHandler:null,
   };
-
-  const ARABIC_TO_LATIN={ '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
 
   function getHomePage(){
     const page=document.getElementById('page-home');
@@ -43,15 +42,6 @@
   function activeHomePage(){
     const page=getHomePage();
     return page&&page.classList.contains('active')?page:null;
-  }
-
-  function translateDigits(value){
-    return String(value||'').replace(/[٠-٩]/g,char=>ARABIC_TO_LATIN[char]||char);
-  }
-
-  function parseDisplayedNumber(value){
-    const normalized=translateDigits(value).replace(/[^\d.-]/g,'');
-    return Number(normalized||0);
   }
 
   function setText(page,selector,value){
@@ -76,9 +66,9 @@
       window.removeEventListener('resize',state.pageResizeHandler);
       state.pageResizeHandler=null;
     }
-    if(state.statsObserver){
-      state.statsObserver.disconnect();
-      state.statsObserver=null;
+    if(state.keyHandler){
+      window.removeEventListener('keydown',state.keyHandler);
+      state.keyHandler=null;
     }
 
     if(state.scene&&window.THREE){
@@ -130,6 +120,7 @@
     state.boost=0;
     state.mouseTarget={x:0,y:0};
     state.mouseCurrent={x:0,y:0};
+    state.drawerOpen=false;
   }
 
   function getHomeMetrics(){
@@ -145,12 +136,10 @@
     const tasksPct=todayTasks.length?Math.round(todayTasks.filter(task=>task.done).length/todayTasks.length*100):0;
     const mvdPct=mvdList.length?Math.round(mvdDone/mvdList.length*100):0;
     const levelData=typeof xpIntoLevel==='function'?xpIntoLevel((S&&S.xp)||0):{level:(S&&S.level)||1,progress:0,current:0,target:200};
-    const maxStreak=habits.reduce((max,habit)=>Math.max(max,typeof calcMaxStreak==='function'?calcMaxStreak(habit.done):0),0);
     const focusValues=[habitsPct,mvdPct];
     if(todayTasks.length)focusValues.push(tasksPct);
     const focusPct=Math.round(focusValues.reduce((sum,value)=>sum+value,0)/Math.max(1,focusValues.length));
-    const commandReadiness=Math.round((Math.min(100,((S&&S.energy)||0)*10)+focusPct+mvdPct)/3);
-    return {levelData,maxStreak,focusPct,mvdPct,habitsPct,tasksPct,commandReadiness};
+    return {levelData,focusPct,mvdPct,habitsPct,tasksPct};
   }
 
   function shipModeLabel(energy,focusPct){
@@ -160,21 +149,32 @@
     return 'Stable Orbit';
   }
 
+  function updateMissionButton(page,mvdPct){
+    const button=page.querySelector('#cockpit-mission-toggle');
+    if(!button)return;
+    button.classList.toggle('is-complete',mvdPct>=100);
+  }
+
+  function updateSceneButtonLabel(){
+    const app=document.querySelector('.app');
+    const button=document.getElementById('cockpit-scene-toggle');
+    if(!app||!button)return;
+    const hidden=app.classList.contains('sidebar-hidden');
+    button.innerHTML=`<span class="cockpit-float-kicker">Scene Mode</span><strong>${hidden?'إظهار الشريط':'إخفاء الشريط'}</strong>`;
+  }
+
   function updateHomeReadouts(page,options={}){
     if(!page||typeof S==='undefined'||!S)return;
 
-    const {levelData,maxStreak,focusPct,mvdPct,habitsPct,tasksPct,commandReadiness}=getHomeMetrics();
+    const {levelData,focusPct,mvdPct,habitsPct,tasksPct}=getHomeMetrics();
 
     setText(page,'#cockpit-level-text',`المستوى ${typeof toAr==='function'?toAr(levelData.level):levelData.level} ✦`);
-    setText(page,'#cockpit-level-badge',typeof toAr==='function'?toAr(S.level||levelData.level):String(S.level||levelData.level));
-    setText(page,'#cockpit-streak-value',typeof toAr==='function'?toAr(maxStreak):String(maxStreak));
     setText(page,'#cockpit-energy-value',`${typeof toAr==='function'?toAr(S.energy):S.energy}/١٠`);
     setText(page,'#cockpit-focus-value',`${typeof toAr==='function'?toAr(focusPct):focusPct}٪`);
-    setText(page,'#cockpit-readiness-value',`${typeof toAr==='function'?toAr(commandReadiness):commandReadiness}٪`);
+    setText(page,'#cockpit-ship-mode',shipModeLabel(S.energy,focusPct));
     setText(page,'#cockpit-sync-mvd',`${typeof toAr==='function'?toAr(mvdPct):mvdPct}٪`);
     setText(page,'#cockpit-sync-habits',`${typeof toAr==='function'?toAr(habitsPct):habitsPct}٪`);
     setText(page,'#cockpit-sync-tasks',`${typeof toAr==='function'?toAr(tasksPct):tasksPct}٪`);
-    setText(page,'#cockpit-ship-mode',shipModeLabel(S.energy,focusPct));
 
     const challengeRecord=typeof getWeekChallengeRecord==='function'?getWeekChallengeRecord():null;
     const challengeText=challengeRecord?(typeof getChallengeText==='function'?(getChallengeText(challengeRecord.id)||challengeRecord.text):challengeRecord.text):'لا يوجد تحدي أسبوعي بعد';
@@ -195,75 +195,10 @@
     const focusBar=page.querySelector('#cockpit-focus-bar');
     if(focusBar)focusBar.style.width=`${Math.max(0,Math.min(100,focusPct))}%`;
 
-    if(options.boost&&window.gsap){
-      const nodes=[
-        page.querySelector('#cockpit-home-xp-bar'),
-        page.querySelector('#cockpit-readiness-value'),
-        page.querySelector('#cockpit-ship-mode'),
-      ].filter(Boolean);
-      gsap.fromTo(nodes,{filter:'brightness(1)'},{filter:'brightness(1.4)',duration:0.18,yoyo:true,repeat:1,ease:'power2.out'});
-    }
+    updateMissionButton(page,mvdPct);
   }
 
-  function formatCounterValue(element,value){
-    const format=element.dataset.counterFormat||'int';
-    if(format==='money')return typeof toArFull==='function'?toArFull(value):String(value);
-    if(format==='percent')return `${typeof toAr==='function'?toAr(value):value}٪`;
-    return typeof toAr==='function'?toAr(value):String(value);
-  }
-
-  function animateCounter(element){
-    const finalText=element.dataset.finalText||element.textContent.trim();
-    const target=parseDisplayedNumber(finalText);
-    const duration=850;
-    const start=performance.now();
-
-    element.dataset.finalText=finalText;
-
-    const frame=(now)=>{
-      const progress=Math.min((now-start)/duration,1);
-      const eased=1-Math.pow(1-progress,3);
-      const current=Math.round(target*eased);
-      element.textContent=formatCounterValue(element,current);
-      if(progress<1){
-        requestAnimationFrame(frame);
-      }else{
-        element.textContent=finalText;
-      }
-    };
-
-    requestAnimationFrame(frame);
-  }
-
-  function initStatCounters(page){
-    const values=page.querySelectorAll('.cockpit-stat-value');
-    values.forEach(value=>{
-      value.dataset.finalText=value.textContent.trim();
-      value.textContent=formatCounterValue(value,0);
-    });
-
-    if(state.statsObserver){
-      state.statsObserver.disconnect();
-    }
-
-    if(!('IntersectionObserver' in window)){
-      values.forEach(animateCounter);
-      return;
-    }
-
-    state.statsObserver=new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{
-        if(entry.isIntersecting){
-          animateCounter(entry.target);
-          state.statsObserver.unobserve(entry.target);
-        }
-      });
-    },{threshold:0.35});
-
-    values.forEach(value=>state.statsObserver.observe(value));
-  }
-
-  /* Canvas starfield: depth comes from projecting stars by z distance. */
+  /* Canvas starfield with depth and subtle streaks for atmosphere. */
   function initStarCanvas(page){
     const canvas=page.querySelector('#star-canvas');
     if(!canvas)return;
@@ -273,7 +208,7 @@
     const rebuildStars=()=>{
       const width=canvas.clientWidth||page.clientWidth||1;
       const height=canvas.clientHeight||page.clientHeight||1;
-      const starCount=Math.min(190,Math.max(120,Math.round((width*height)/11000)));
+      const starCount=Math.min(210,Math.max(130,Math.round((width*height)/11000)));
       state.stars=Array.from({length:starCount},()=>({
         x:(Math.random()*2)-1,
         y:(Math.random()*2)-1,
@@ -281,7 +216,7 @@
         size:Math.random()*1.9+0.35,
         speed:Math.random()*0.006+0.003,
       }));
-      state.streaks=Array.from({length:8},()=>({active:false}));
+      state.streaks=Array.from({length:10},()=>({active:false}));
     };
 
     const resizeCanvas=()=>{
@@ -303,8 +238,8 @@
       if(!streak)return;
       streak.active=true;
       streak.x=Math.random()*(canvas.clientWidth||1);
-      streak.y=Math.random()*(canvas.clientHeight*0.7||1);
-      streak.length=110+Math.random()*140;
+      streak.y=Math.random()*(canvas.clientHeight*0.76||1);
+      streak.length=120+Math.random()*160;
       streak.life=0;
       streak.maxLife=20+Math.random()*18;
       streak.angle=(-0.45)-(Math.random()*0.18);
@@ -323,7 +258,6 @@
       const centerY=height/2;
 
       ctx.clearRect(0,0,width,height);
-
       state.mouseCurrent.x+=(state.mouseTarget.x-state.mouseCurrent.x)*0.045;
       state.mouseCurrent.y+=(state.mouseTarget.y-state.mouseCurrent.y)*0.045;
 
@@ -344,12 +278,12 @@
         ctx.beginPath();
         ctx.fillStyle=`rgba(235,247,255,${alpha})`;
         ctx.shadowBlur=10;
-        ctx.shadowColor='rgba(134,233,255,0.22)';
+        ctx.shadowColor='rgba(139,234,255,0.22)';
         ctx.arc(px,py,radius,0,Math.PI*2);
         ctx.fill();
       });
 
-      if(Math.random()<0.018)activateStreak();
+      if(Math.random()<0.02)activateStreak();
 
       state.streaks.forEach(streak=>{
         if(!streak.active)return;
@@ -360,8 +294,8 @@
         const offset=streak.life*streak.speed;
 
         ctx.beginPath();
-        ctx.strokeStyle=`rgba(134,233,255,${alpha*0.45})`;
-        ctx.lineWidth=1.3;
+        ctx.strokeStyle=`rgba(139,234,255,${alpha*0.45})`;
+        ctx.lineWidth=1.35;
         ctx.moveTo(streak.x+offset,streak.y+offset*0.08);
         ctx.lineTo(streak.x+offset-dx,streak.y+offset*0.08-dy);
         ctx.stroke();
@@ -387,10 +321,10 @@
       metalness:0.58,
     });
 
-    state.shards=Array.from({length:16},(_,index)=>{
+    state.shards=Array.from({length:18},(_,index)=>{
       const shard=new THREE.Mesh(shardGeometry,shardMaterial.clone());
-      const angle=(index/16)*Math.PI*2;
-      const radius=2.15+(index%4)*0.18;
+      const angle=(index/18)*Math.PI*2;
+      const radius=2.2+(index%5)*0.16;
       shard.userData={angle,radius,offset:index*0.32,height:(index%2===0?1:-1)*0.24};
       shard.position.set(Math.cos(angle)*radius,Math.sin(index*0.6)*0.5,Math.sin(angle)*radius*0.4);
       shard.scale.setScalar(0.82+(index%3)*0.18);
@@ -433,7 +367,7 @@
     return state.particleField;
   }
 
-  /* Three.js scene: a floating holographic core driven by mouse and task completion. */
+  /* Three.js centerpiece: one giant core with slow motion and reactive pulses. */
   function initThreeScene(page){
     if(!window.THREE)return;
 
@@ -444,7 +378,7 @@
     const THREE=window.THREE;
     const scene=new THREE.Scene();
     const camera=new THREE.PerspectiveCamera(42,1,0.1,60);
-    camera.position.set(0,0,7.4);
+    camera.position.set(0,0,7.8);
 
     const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.8));
@@ -456,14 +390,14 @@
     const ambientLight=new THREE.AmbientLight(0x6db4ff,0.78);
     const pointLight=new THREE.PointLight(0x88f0ff,3.1,18,2);
     pointLight.position.set(0,0,5.2);
-    const rimLight=new THREE.PointLight(0x9c7dff,1.6,22,2);
+    const rimLight=new THREE.PointLight(0x9c7dff,1.7,22,2);
     rimLight.position.set(-4,2,-1);
     scene.add(ambientLight,pointLight,rimLight);
 
     const coreGroup=new THREE.Group();
 
     const orb=new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.12,2),
+      new THREE.IcosahedronGeometry(1.18,2),
       new THREE.MeshPhysicalMaterial({
         color:0x84e7ff,
         emissive:0x285dff,
@@ -478,7 +412,7 @@
     );
 
     const innerCore=new THREE.Mesh(
-      new THREE.SphereGeometry(0.64,32,32),
+      new THREE.SphereGeometry(0.68,32,32),
       new THREE.MeshBasicMaterial({
         color:0xffda76,
         transparent:true,
@@ -488,7 +422,7 @@
     );
 
     const ringA=new THREE.Mesh(
-      new THREE.TorusGeometry(1.85,0.035,16,180),
+      new THREE.TorusGeometry(1.95,0.035,16,180),
       new THREE.MeshStandardMaterial({
         color:0x7ae9ff,
         emissive:0x2d85ff,
@@ -501,7 +435,7 @@
     ringA.rotation.y=Math.PI/6;
 
     const ringB=new THREE.Mesh(
-      new THREE.TorusGeometry(2.35,0.05,16,180),
+      new THREE.TorusGeometry(2.45,0.05,16,180),
       new THREE.MeshStandardMaterial({
         color:0xa47eff,
         emissive:0x4c37ff,
@@ -514,7 +448,7 @@
     ringB.rotation.z=Math.PI/7;
 
     const ringC=new THREE.Mesh(
-      new THREE.TorusGeometry(1.35,0.03,16,180),
+      new THREE.TorusGeometry(1.42,0.03,16,180),
       new THREE.MeshStandardMaterial({
         color:0xffd36b,
         emissive:0xc6842e,
@@ -561,19 +495,18 @@
 
       const t=performance.now()*0.001;
       state.boost=Math.max(0,state.boost-0.018);
-
       state.mouseCurrent.x+=(state.mouseTarget.x-state.mouseCurrent.x)*0.05;
       state.mouseCurrent.y+=(state.mouseTarget.y-state.mouseCurrent.y)*0.05;
 
       coreGroup.position.y=Math.sin(t*1.4)*0.18;
-      coreGroup.position.x=state.mouseCurrent.x*0.38;
+      coreGroup.position.x=state.mouseCurrent.x*0.34;
       coreGroup.rotation.y+=0.008+(state.boost*0.028);
-      coreGroup.rotation.x=(Math.sin(t*0.8)*0.14)+(state.mouseCurrent.y*0.24);
-      coreGroup.rotation.z=(Math.sin(t*0.45)*0.08)+(state.mouseCurrent.x*0.16);
+      coreGroup.rotation.x=(Math.sin(t*0.8)*0.14)+(state.mouseCurrent.y*0.22);
+      coreGroup.rotation.z=(Math.sin(t*0.45)*0.08)+(state.mouseCurrent.x*0.14);
 
       const orbScale=1+(state.boost*0.12)+(Math.sin(t*2.2)*0.02);
       orb.scale.setScalar(orbScale);
-      innerCore.scale.setScalar(1.02+(state.boost*0.22)+(Math.sin(t*2.8)*0.04));
+      innerCore.scale.setScalar(1.04+(state.boost*0.22)+(Math.sin(t*2.8)*0.04));
       innerCore.material.opacity=0.34+(state.boost*0.22);
       orb.material.emissiveIntensity=1.2+(state.boost*1.9);
       pointLight.intensity=3.1+(state.boost*2.4);
@@ -607,8 +540,8 @@
         state.particleField.rotation.x+=0.001;
       }
 
-      camera.position.x=state.mouseCurrent.x*0.85;
-      camera.position.y=state.mouseCurrent.y*0.48;
+      camera.position.x=state.mouseCurrent.x*0.72;
+      camera.position.y=state.mouseCurrent.y*0.4;
       camera.lookAt(coreGroup.position);
       renderer.render(scene,camera);
       state.threeRaf=requestAnimationFrame(animate);
@@ -626,13 +559,13 @@
       state.mouseTarget.y=relY;
 
       page.querySelectorAll('.parallax-bg').forEach(node=>{
-        node.style.transform=`translate3d(${(-relX*22).toFixed(2)}px,${(-relY*16).toFixed(2)}px,0)`;
+        node.style.transform=`translate3d(${(-relX*24).toFixed(2)}px,${(-relY*18).toFixed(2)}px,0)`;
       });
       page.querySelectorAll('.parallax-mid').forEach(node=>{
-        node.style.transform=`translate3d(${(-relX*15).toFixed(2)}px,${(-relY*11).toFixed(2)}px,0)`;
+        node.style.transform=`translate3d(${(-relX*16).toFixed(2)}px,${(-relY*12).toFixed(2)}px,0)`;
       });
       page.querySelectorAll('.parallax-fg').forEach(node=>{
-        node.style.transform=`translate3d(${(-relX*9).toFixed(2)}px,${(-relY*7).toFixed(2)}px,0)`;
+        node.style.transform=`translate3d(${(-relX*10).toFixed(2)}px,${(-relY*8).toFixed(2)}px,0)`;
       });
     };
 
@@ -658,12 +591,12 @@
     if(!window.gsap)return;
 
     const targets=[
-      page.querySelector('.cockpit-hero-panel'),
-      page.querySelector('.cockpit-xp-panel'),
-      page.querySelector('.cockpit-missions-panel'),
-      page.querySelector('.cockpit-core-panel'),
-      page.querySelector('.cockpit-telemetry-panel'),
-      ...Array.from(page.querySelectorAll('.cockpit-link-tile')),
+      page.querySelector('.cockpit-hero-stage'),
+      page.querySelector('.cockpit-float-controls'),
+      page.querySelector('.cockpit-core-stage'),
+      page.querySelector('.cockpit-xp-ribbon'),
+      page.querySelector('.cockpit-core-caption'),
+      ...Array.from(page.querySelectorAll('.cockpit-orbit-hud')),
     ].filter(Boolean);
 
     const greeting=page.querySelector('#home-greeting');
@@ -671,17 +604,17 @@
 
     gsap.killTweensOf(targets);
     gsap.killTweensOf([greeting,subtitle]);
-    gsap.set(targets,{opacity:0,y:28,scale:0.985});
+    gsap.set(targets,{opacity:0,y:30,scale:0.985});
     gsap.set([greeting,subtitle],{opacity:0,y:16,filter:'blur(10px)'});
 
     const timeline=gsap.timeline({defaults:{ease:'power3.out'}});
-    timeline.to(greeting,{opacity:1,y:0,filter:'blur(0px)',duration:0.72});
-    timeline.to(subtitle,{opacity:1,y:0,filter:'blur(0px)',duration:0.54},'-=0.42');
+    timeline.to(greeting,{opacity:1,y:0,filter:'blur(0px)',duration:0.76});
+    timeline.to(subtitle,{opacity:1,y:0,filter:'blur(0px)',duration:0.56},'-=0.42');
     timeline.to(targets,{
       opacity:1,
       y:0,
       scale:1,
-      duration:0.74,
+      duration:0.78,
       stagger:0.06,
       clearProps:'opacity,transform,filter',
     },'-=0.26');
@@ -691,7 +624,6 @@
     page.querySelectorAll('.cockpit-task').forEach(task=>{
       if(task.dataset.cockpitBound==='true')return;
       task.dataset.cockpitBound='true';
-
       task.addEventListener('pointerdown',()=>{
         if(window.gsap){
           gsap.fromTo(task,{scale:1},{scale:0.985,duration:0.12,yoyo:true,repeat:1,ease:'power1.out'});
@@ -707,19 +639,18 @@
     for(let index=0;index<16;index+=1){
       const particle=document.createElement('span');
       const angle=(index/16)*Math.PI*2;
-      const distance=34+Math.random()*54;
+      const distance=34+Math.random()*56;
       const duration=520+Math.random()*220;
       particle.className='dashboard-particle';
       particle.style.left=`${x}px`;
       particle.style.top=`${y}px`;
       layer.appendChild(particle);
 
-      const keyframes=[
+      particle.animate([
         { transform:'translate(-50%,-50%) scale(1)', opacity:1 },
         { transform:`translate(calc(-50% + ${Math.cos(angle)*distance}px), calc(-50% + ${Math.sin(angle)*distance}px)) scale(0)`, opacity:0 },
-      ];
+      ],{duration,easing:'cubic-bezier(0.22,1,0.36,1)',fill:'forwards'});
 
-      particle.animate(keyframes,{duration,easing:'cubic-bezier(0.22,1,0.36,1)',fill:'forwards'});
       setTimeout(()=>particle.remove(),duration+40);
     }
 
@@ -737,16 +668,16 @@
 
   function spawnXpFloat(page,text){
     const layer=page.querySelector('#cockpit-fx-layer');
-    const xpPanel=page.querySelector('.cockpit-xp-panel');
-    if(!layer||!xpPanel)return;
+    const ribbon=page.querySelector('.cockpit-xp-ribbon');
+    if(!layer||!ribbon)return;
 
     const pageRect=page.getBoundingClientRect();
-    const xpRect=xpPanel.getBoundingClientRect();
+    const ribbonRect=ribbon.getBoundingClientRect();
     const floatEl=document.createElement('span');
     floatEl.className='cockpit-xp-float';
     floatEl.textContent=text;
-    floatEl.style.left=`${xpRect.right-pageRect.left-92}px`;
-    floatEl.style.top=`${xpRect.top-pageRect.top+18}px`;
+    floatEl.style.left=`${ribbonRect.left-pageRect.left+24}px`;
+    floatEl.style.top=`${ribbonRect.top-pageRect.top-2}px`;
     layer.appendChild(floatEl);
 
     if(window.gsap){
@@ -778,6 +709,30 @@
     }
   }
 
+  function applyMissionDrawerState(page,open){
+    if(!page)return;
+    state.drawerOpen=Boolean(open);
+    page.classList.toggle('mission-open',state.drawerOpen);
+  }
+
+  function openMissionDrawer(){
+    const page=activeHomePage();
+    if(!page)return;
+    applyMissionDrawerState(page,true);
+  }
+
+  function closeMissionDrawer(){
+    const page=getHomePage();
+    if(!page)return;
+    applyMissionDrawerState(page,false);
+  }
+
+  function toggleMissionDrawer(){
+    const page=activeHomePage();
+    if(!page)return;
+    applyMissionDrawerState(page,!state.drawerOpen);
+  }
+
   function handleTaskToggle(event){
     const page=activeHomePage();
     if(!page)return;
@@ -791,8 +746,9 @@
     }
 
     const pageRect=page.getBoundingClientRect();
-    if(task){
-      const rect=task.getBoundingClientRect();
+    const anchor=task||page.querySelector('#cockpit-mission-toggle');
+    if(anchor){
+      const rect=anchor.getBoundingClientRect();
       emitParticleBurst(page,rect.left-pageRect.left+(rect.width/2),rect.top-pageRect.top+(rect.height/2));
     }
 
@@ -817,23 +773,42 @@
     button.classList.toggle('is-collapsed',collapsed);
   }
 
-  function setSidebarCollapsed(collapsed){
-    const app=document.querySelector('.app');
-    if(!app)return;
-    app.classList.toggle('sidebar-collapsed',collapsed);
-    localStorage.setItem('sama_sidebar_collapsed',collapsed?'1':'0');
-    syncSidebarToggleLabel();
-
+  function scheduleSceneResize(){
     setTimeout(()=>{
       if(typeof state.resizeCanvas==='function')state.resizeCanvas();
       if(typeof state.resizeThree==='function')state.resizeThree();
     },320);
   }
 
+  function setSidebarCollapsed(collapsed){
+    const app=document.querySelector('.app');
+    if(!app)return;
+    app.classList.toggle('sidebar-collapsed',collapsed);
+    localStorage.setItem('sama_sidebar_collapsed',collapsed?'1':'0');
+    syncSidebarToggleLabel();
+    updateSceneButtonLabel();
+    scheduleSceneResize();
+  }
+
   function toggleSidebarCollapse(){
     const app=document.querySelector('.app');
     if(!app)return;
     setSidebarCollapsed(!app.classList.contains('sidebar-collapsed'));
+  }
+
+  function setSidebarHidden(hidden){
+    const app=document.querySelector('.app');
+    if(!app)return;
+    app.classList.toggle('sidebar-hidden',hidden);
+    localStorage.setItem('sama_sidebar_hidden',hidden?'1':'0');
+    updateSceneButtonLabel();
+    scheduleSceneResize();
+  }
+
+  function toggleSidebarVisibility(){
+    const app=document.querySelector('.app');
+    if(!app)return;
+    setSidebarHidden(!app.classList.contains('sidebar-hidden'));
   }
 
   function bindGlobalListeners(){
@@ -846,27 +821,39 @@
     const page=getHomePage();
     if(!page)return;
     updateHomeReadouts(page,options);
+    updateSceneButtonLabel();
   }
 
   function dashboardCockpitInit(options={}){
     bindGlobalListeners();
     syncSidebarToggleLabel();
+    updateSceneButtonLabel();
 
     const page=activeHomePage();
     if(!page)return;
 
     cleanupPageRuntime();
     state.page=page;
+    applyMissionDrawerState(page,false);
     initStarCanvas(page);
     initParallax(page);
     initThreeScene(page);
     initTaskInteractions(page);
     updateHomeReadouts(page);
-    initStatCounters(page);
+
+    state.keyHandler=(event)=>{
+      if(event.key==='Escape')closeMissionDrawer();
+    };
+    window.addEventListener('keydown',state.keyHandler);
+
     if(!options.skipEntrance)initCockpitEntrance(page);
   }
 
   window.toggleSidebarCollapse=toggleSidebarCollapse;
+  window.toggleSidebarVisibility=toggleSidebarVisibility;
+  window.openMissionDrawer=openMissionDrawer;
+  window.closeMissionDrawer=closeMissionDrawer;
+  window.toggleMissionDrawer=toggleMissionDrawer;
   window.dashboardCockpitInit=dashboardCockpitInit;
   window.dashboardCockpitRefresh=dashboardCockpitRefresh;
 })();

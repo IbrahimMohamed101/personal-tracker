@@ -370,6 +370,11 @@ function syncPageNav(id){
 function goPage(id){
   const page=document.getElementById('page-'+id);
   if(!page)return;
+  if(id!=='home'){
+    const app=document.querySelector('.app');
+    if(app)app.classList.remove('sidebar-hidden');
+    localStorage.removeItem('sama_sidebar_hidden');
+  }
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   page.classList.add('active');
   syncPageNav(id);
